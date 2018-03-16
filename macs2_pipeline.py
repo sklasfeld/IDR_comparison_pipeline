@@ -28,9 +28,10 @@ def filternarrowpeak(narrowPeakFile, prefix, outputdir, peak_type,
                                   'peak':'int'})
 
     # remove unwanted chromosomes from output
-    if len(filter_chr) > 0:
-        sys.stdout.write("REMOVE FROM OUTPUT CHROMOSOME(S): %s...\n" % (",".join(filter_chr)))
-        np_table = np_table[~np_table["chr"].isin(filter_chr)]
+    if filter_chr:
+        if len(filter_chr) > 0:
+            sys.stdout.write("REMOVE FROM OUTPUT CHROMOSOME(S): %s...\n" % (",".join(filter_chr)))
+            np_table = np_table[~np_table["chr"].isin(filter_chr)]
 
     # filter via qvalue
     if qval2 >= 0:
@@ -40,16 +41,19 @@ def filternarrowpeak(narrowPeakFile, prefix, outputdir, peak_type,
 
 
     out = ("%s/%s_postFilter.%sPeak" % (outputdir, prefix, peak_type))
-    if len(filter_neg) > 0:
-        # output current narrowpeak file
-        before_subtraction_f = ("%s/%s_prePostFilter.%sPeak" % (outputdir, prefix, peak_type))
-        np_table.to_csv(before_subtraction_f, sep="\t", index=False, header=False)
-        # run bedtools subtract
-        subtract_neg = ("%sbedtools subtract -A -F %s -a %s -b %s > %s"
-            % (bedtools_path, filter_neg[1], before_subtraction_f, filter_neg[0], out))
-        sys.stdout.write("%s\n" % subtract_neg)
-        sys.stdout.flush()
-        os.system(subtract_neg)
+    if filter_neg:
+        if len(filter_neg) > 0:
+            # output current narrowpeak file
+            before_subtraction_f = ("%s/%s_prePostFilter.%sPeak" % (outputdir, prefix, peak_type))
+            np_table.to_csv(before_subtraction_f, sep="\t", index=False, header=False)
+            # run bedtools subtract
+            subtract_neg = ("%sbedtools subtract -A -F %s -a %s -b %s > %s"
+                % (bedtools_path, filter_neg[1], before_subtraction_f, filter_neg[0], out))
+            sys.stdout.write("%s\n" % subtract_neg)
+            sys.stdout.flush()
+            os.system(subtract_neg)
+    else:
+        np_table.to_csv(out, sep="\t", index=False, header=False)
     return out
 
 # run MACS2 Pipeline
@@ -95,7 +99,7 @@ def macs2_peaks(t_docs, t_names, c_docs, genome_size, macs2_file_type, qval2,
             sys.stdout.write("%s\n" % run_macs2)
             sys.stdout.flush()
             os.system(run_macs2)
-        if qval2 >= 0 or len(filter_chr) > 0 or len(filter_neg) > 0:
+        if qval2 >= 0 or filter_chr or filter_neg:
             out = filternarrowpeak(chipout, prefix, outputdir, peak_type,
                                           qval2, filter_chr, filter_neg,
                                           bedtools_path)

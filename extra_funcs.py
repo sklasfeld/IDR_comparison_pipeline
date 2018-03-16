@@ -94,7 +94,7 @@ def wc(file_name, samtools_path=""):
         elif os.path.splitext(file_name)[1] == ".bam" or \
             os.path.splitext(file_name)[1] == ".sam" or \
             os.path.splitext(file_name)[1] == ".tagAlign":
-            cmd = ("%ssamtools view -F 4 -c %s" % (samtools_path, file_name))
+            cmd = ("%ssamtools view -c %s" % (samtools_path, file_name))
         sys.stdout.write("%s\n" % cmd)
         sys.stdout.flush()
         ps = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,

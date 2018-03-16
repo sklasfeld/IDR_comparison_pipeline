@@ -18,13 +18,16 @@ def pass_idr(fname, threshold, idrtype):
                           stderr=subprocess.STDOUT)
         output = ps.communicate()[0]
         pass_idr_out = int(output.strip())
-    if idrtype == "RSCRIPT":
-        cmd = ("""awk '$11 <= %f {print $0}' %s | wc -l"""
-           % (threshold, fname))
-        ps = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT)
-        output = ps.communicate()[0]
-        pass_idr_out = int(output.strip()) - 1
+
+    # THIS R SCRIPT IS DEPRECATED
+    # if idrtype == "RSCRIPT":
+    #     cmd = ("""awk '$11 <= %f {print $0}' %s | wc -l"""
+    #        % (threshold, fname))
+    #     ps = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+    #                       stderr=subprocess.STDOUT)
+    #     output = ps.communicate()[0]
+    #     pass_idr_out = int(output.strip()) - 1
+
     return  pass_idr_out
 
 def run_idrscript(idrtype, idrpath, peak_type, peakfile1, \
@@ -41,15 +44,16 @@ def run_idrscript(idrtype, idrpath, peak_type, peakfile1, \
                          % (idrpath, peakfile1, peakfile2,
                             peak_type.lower(), threshold,
                             out))
-        if idrtype == "RSCRIPT":
-            bro = "F"
-            if peak_type == "broad":
-                bro = "T"
-            run_idr_script = (("Rscript %sbatch-consistency-analysis.r "
-                              "%s %s -1 %s 0 %s p.value %s %s")
-                             % (idrpath, peakfile1, peakfile2,
-                                idr_result_prefix, bro,
-                                scriptpath, chromsizes))
+        # THIS RSCRIPT IS DEPRECATED
+        # if idrtype == "RSCRIPT":
+        #     bro = "F"
+        #     if peak_type == "broad":
+        #         bro = "T"
+        #     run_idr_script = (("Rscript %sbatch-consistency-analysis.r "
+        #                       "%s %s -1 %s 0 %s p.value %s %s")
+        #                      % (idrpath, peakfile1, peakfile2,
+        #                         idr_result_prefix, bro,
+        #                         scriptpath, chromsizes))
         extra_funcs.runcmdline(run_idr_script)
     return out
 
@@ -94,7 +98,7 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
     sys.stdout.write("CHROM SIZE FILE: %s\n" % chrom_sizes)
     sys.stdout.write("PEAK TYPE: %s\n" % peak_type)
     sys.stdout.write("OTHER MACS2 PARAMS: %s\n" % other_macs2_params)
-    sys.stdout.write("results_file: %s\n\n" % results_file)
+    sys.stdout.write("RESULTS FILE: %s\n\n" % results_file)
 
 
     # SET MACS2 PARAMETERS
@@ -104,7 +108,9 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
         c_docs_str = " ".join(c_docs)
         cdocs_pooled = ("%s_control.bam" % expName)
         if not os.path.isfile(cdocs_pooled):
-            make_ctrl = ("""samtools merge %s %s""" % (cdocs_pooled, c_docs_str))
+            make_ctrl = ("""%ssamtools merge %s %s""" % (samtools_path,
+                                                         cdocs_pooled,
+                                                         c_docs_str))
             sys.stdout.write("%s\n" % make_ctrl)
             sys.stdout.flush()
             os.system(make_ctrl)
@@ -290,7 +296,7 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
                                                               output_stub,
                                                               peak_type))
             if not os.path.isfile(in_narrowPeak):
-                in_narrowPeak = (("%s/%_pr2_peaks.%sPeak") % (outputdir,
+                in_narrowPeak = (("%s/%s_pr2_peaks.%sPeak") % (outputdir,
                                                               output_stub,
                                                               peak_type))
             run_sort = ("""sort -k 8nr,8nr %s  | head -n 100000 > %s"""
@@ -495,7 +501,7 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
 
 
 def filter_with_idr(idrtype, expName, numTreats, self_threshold, true_threshold, pool_threshold,
-                    peak_type):
+                    peak_type, bedtools_path):
     peak_type = peak_type.lower()
 
     # check for necessary macs2 pooled file
@@ -610,8 +616,8 @@ def filter_with_idr(idrtype, expName, numTreats, self_threshold, true_threshold,
     optimal_bed_idr = ("%s/chipSampleRepAll.optimal.%sPeak" % (out_dir, peak_type))
     final_filter_1 = (("""sort -k8nr,8nr %s > %s.tmp""") % (pool_macs,
                                                             optimal_bed_idr))
-    final_filter_2 = (("""head -n %i %s.tmp| bedtools sort -i > %s""") \
-                      % (optimal_threshold, optimal_bed_idr, optimal_bed_idr))
+    final_filter_2 = (("""head -n %i %s.tmp| %sbedtools sort -i > %s""") \
+                      % (optimal_threshold, optimal_bed_idr, bedtools_path, optimal_bed_idr))
     final_filter_3 = ("rm %s.tmp " % optimal_bed_idr)
     sys.stdout.write("%s\n" % final_filter_1)
     sys.stdout.flush()
@@ -628,8 +634,9 @@ def filter_with_idr(idrtype, expName, numTreats, self_threshold, true_threshold,
                             % (out_dir, peak_type))
     final_filter_1 = ("""sort -k8nr,8nr %s > %s.tmp""" % (pool_macs,
                                                           conservative_bed_idr))
-    final_filter_2 = ("""head -n %i %s.tmp| bedtools sort -i > %s"""
-                      % (conservative_threshold, conservative_bed_idr, conservative_bed_idr))
+    final_filter_2 = ("""head -n %i %s.tmp| %sbedtools sort -i > %s"""
+                      % (conservative_threshold, conservative_bed_idr,
+                         bedtools_path, conservative_bed_idr))
     final_filter_3 = ("rm %s.tmp " % conservative_bed_idr)
     sys.stdout.write("%s\n" % final_filter_1)
     sys.stdout.flush()

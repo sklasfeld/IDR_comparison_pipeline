@@ -1,13 +1,16 @@
 import argparse
 import idr_pipeline
 import extra_funcs
+import os
+import sys
 
 
 def main(prefix, t_docs, t_names, c_docs, genome_size,
-                 macs2_file_type, self_threshold, true_threshold,
-                 pool_threshold, chrom_sizes, filter_chr, filter_neg,
-                 peak_type, other_macs2_params, results_file, idr_path,
-                 macs2_path, bedtools_path, samtools_path):
+         macs2_file_type, self_threshold, true_threshold,
+         pool_threshold, chrom_sizes, filter_chr, filter_neg,
+         peak_type, other_macs2_params, results_file, idr_path,
+         macs2_path, bedtools_path, samtools_path,
+         filter_using_idr):
     idrtype="PYTHON"
 
     if len(t_docs) < 2:
@@ -45,12 +48,28 @@ def main(prefix, t_docs, t_names, c_docs, genome_size,
     if not extra_funcs.between0and1(pool_threshold):
         sys.exit("poolPseud_threshold must be a float between 0 and 1")
 
+    for t_file in t_docs:
+        if not os.path.isfile(t_file):
+            sys.exit("Treatment file %s does not exist" % t_file)
+
+    for c_file in c_docs:
+        if not os.path.isfile(c_file):
+            sys.exit("Control file %s does not exist" % c_file)
+
+    if not os.path.isfile(chrom_sizes):
+        sys.exit("Chromosome size file %s does not exist" % chrom_sizes)
+
     idr_pipeline.run(idrtype, prefix, t_docs, t_names_list,
         c_docs, genome_size, macs2_file_type, self_threshold,
         true_threshold, pool_threshold, chrom_sizes, filter_chr,
         filter_neg, peak_type, other_macs2_params,
         results_file, idr_path, macs2_path, bedtools_path,
         samtools_path)
+    if filter_using_idr:
+        idr_pipeline.filter_with_idr(idrtype, prefix, len(t_names),
+                                     self_threshold, true_threshold,
+                                     pool_threshold, peak_type,
+                                     bedtools_path)
 
 if __name__ == '__main__':
 
@@ -96,6 +115,8 @@ if __name__ == '__main__':
         in macs2 (see their github page for more info)")
     parser.add_argument('-O','--results_file', help='Name of IDR results file; \
         Default: $expname_results.txt', required=False)
+    parser.add_argument('--filter_using_idr', help='filter using idr',
+                        action='store_true')
     parser.add_argument('-mp','--macs2_path', help='path to macs2', default = "")
     parser.add_argument('-ip','--idr_path', help='path to idr scripts', default = "")
     parser.add_argument('-bp','--bedtools_path', help='path to bedtools', default = "")
@@ -108,4 +129,4 @@ if __name__ == '__main__':
          args.trueRep_threshold, args.poolPseud_threshold, args.chrom_sizes, args.filter_chr,
          args.filter_neg, args.peak_type, args.other_macs2_params,
          args.results_file, args.idr_path, args.macs2_path, args.bedtools_path,
-         args.samtools_path)
+         args.samtools_path, args.filter_using_idr)

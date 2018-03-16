@@ -44,6 +44,9 @@ This directory contains the MACS2 and IDR analyis of the individual true replica
 
 This directory contains the MACS2 analyis of the true replicates after pooling them together.
 
+`FDChIP_wiDups_truePooled/poolSamples.bam` is merged bam file that contains all of the replicates
+concatonated together.
+
 ### pooledPseudoreps
 
 This directory contains the MACS2 and IDR analyis of the pooled-pseudo replicates. 

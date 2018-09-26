@@ -5,7 +5,7 @@ import os
 import sys
 
 
-def main(prefix, t_docs, t_names, c_docs, genome_size,
+def main(prefix, t_docs, t_names, c_docs, c_prefix, genome_size,
          macs2_file_type, self_threshold, true_threshold,
          pool_threshold, chrom_sizes, filter_chr, filter_neg,
          peak_type, other_macs2_params, results_file, idr_path,
@@ -29,7 +29,9 @@ def main(prefix, t_docs, t_names, c_docs, genome_size,
     macs2_file_type = macs2_file_type.upper()
     if macs2_file_type != "BAM":
         if macs2_file_type != "BED":
-            sys.exit("--macs2_file_type must be BAM or BED")
+            if macs2_file_type != "BEDPE":
+                if macs2_file_type != "BAMPE":
+                    sys.exit("--macs2_file_type must be BAM, BED, BAMPE, or BEDPE")
 
     peak_type = peak_type.upper()
     if peak_type != "NARROW":
@@ -52,21 +54,23 @@ def main(prefix, t_docs, t_names, c_docs, genome_size,
         if not os.path.isfile(t_file):
             sys.exit("Treatment file %s does not exist" % t_file)
 
-    for c_file in c_docs:
-        if not os.path.isfile(c_file):
-            sys.exit("Control file %s does not exist" % c_file)
+    if len(c_docs) > 0:
+        for c_file in c_docs:
+            if not os.path.isfile(c_file):
+                sys.exit("Control file %s does not exist" % c_file)
 
     if not os.path.isfile(chrom_sizes):
         sys.exit("Chromosome size file %s does not exist" % chrom_sizes)
 
     idr_pipeline.run(idrtype, prefix, t_docs, t_names_list,
-        c_docs, genome_size, macs2_file_type, self_threshold,
+        c_docs, c_prefix, genome_size, macs2_file_type, self_threshold,
         true_threshold, pool_threshold, chrom_sizes, filter_chr,
         filter_neg, peak_type, other_macs2_params,
         results_file, idr_path, macs2_path, bedtools_path,
         samtools_path)
+
     if filter_using_idr:
-        idr_pipeline.filter_with_idr(idrtype, prefix, len(t_names),
+        idr_pipeline.filter_with_idr(idrtype, prefix, t_names,
                                      self_threshold, true_threshold,
                                      pool_threshold, peak_type,
                                      bedtools_path)
@@ -97,9 +101,12 @@ if __name__ == '__main__':
     parser.add_argument('-td','--t_docs', help='bam or bed files for treatment \
         samples', nargs='+', required=True)
     parser.add_argument('-cd','--c_docs', help='bam or bed files for input \
-        (control) samples', nargs='*', required=False)
+        (control) samples', nargs='*', required=False, default=[])
     parser.add_argument('-tn','--t_names', help='names for treatment samples (list \
         must be equal to t_docs list)', nargs='+', required=False)
+    parser.add_argument('-cp','--c_prefix', help='input (control samples) will be \
+        pooled into one mapping file with this prefix and .bam or .bed as its suffix \
+        restively (default:control)', default="control", required=False)
     parser.add_argument('-gs','--genome_size', help='effective genome size \
         (default: 101274395 which is the effective genome size of Arabidopsis)', \
         type=int, required=False, default=101274395)
@@ -125,7 +132,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args.prefix, args.t_docs, args.t_names,
-         args.c_docs, args.genome_size, args.macs2_file_type, args.selfPseud_threshold,
+         args.c_docs, args.c_prefix, args.genome_size, args.macs2_file_type, args.selfPseud_threshold,
          args.trueRep_threshold, args.poolPseud_threshold, args.chrom_sizes, args.filter_chr,
          args.filter_neg, args.peak_type, args.other_macs2_params,
          args.results_file, args.idr_path, args.macs2_path, args.bedtools_path,

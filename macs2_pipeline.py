@@ -74,7 +74,6 @@ def filternarrowpeak(narrowPeakFile, prefix, outputdir, peak_type,
 def macs2_peaks(t_docs, t_names, c_docs, genome_size, macs2_file_type, qval2,
                 filter_chr, filter_neg, peak_type, pool_reps, other_param,
                 outputdir, macs2_path, bedtools_path):
-
     peak_type = peak_type.lower()
     params = ""
     if len(c_docs) > 0:

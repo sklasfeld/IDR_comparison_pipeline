@@ -34,7 +34,7 @@ def run_idrscript(idrtype, idrpath, peak_type, peakfile1, \
                   peakfile2, threshold, idr_result_prefix, \
                   scriptpath, chromsizes):
     out = ("%s-overlapped-peaks.txt" % idr_result_prefix)
-    if not os.path.isfile(out):
+    if extra_funcs.wc(out) == 0:
         run_idr_script = (("%sidr --samples "
                           "%s %s "
                           "--rank p.value --plot "
@@ -78,7 +78,7 @@ def run_idrscript(idrtype, idrpath, peak_type, peakfile1, \
 # 	macs2_path = PATH to macs2 script
 # 	bedtools_path = PATH to bedtools scripts
 #	samtools_path = PATH to samtools scripts
-def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
+def run(idrtype, expName, t_docs, t_names, c_docs, c_prefix, genome_size,
                  macs2_file_type, self_threshold, true_threshold,
                  pool_threshold, chrom_sizes, filter_chr, filter_neg,
                  peak_type, other_macs2_params, results_file, idr_path,
@@ -106,7 +106,7 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
     peak_type = peak_type.lower()
     if len(c_docs) > 1:
         c_docs_str = " ".join(c_docs)
-        cdocs_pooled = ("%s_control.bam" % expName)
+        cdocs_pooled = ("%s.bam" % c_prefix)
         if not os.path.isfile(cdocs_pooled):
             make_ctrl = ("""%ssamtools merge %s %s""" % (samtools_path,
                                                          cdocs_pooled,
@@ -182,7 +182,7 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
     sys.stdout.flush()
     for t_i in range(0, len(t_docs) - 1):
         for t_j in range(t_i + 1, len(t_docs)):
-            idr_result_prefix = ("%s/true_rep%ivrep%i" % (outputdir, t_i + 1, t_j + 1))
+            idr_result_prefix = ("%s/%s_v_%s" % (outputdir, t_names[t_i], t_names[t_j]))
             peakf1 = ("%s/%s_sorted_peaks.%sPeak" % (outputdir, t_names[t_i], peak_type))
             peakf2 = ("%s/%s_sorted_peaks.%sPeak" % (outputdir, t_names[t_j], peak_type))
             out = run_idrscript(idrtype, idr_path, peak_type, peakf1, peakf2, \
@@ -209,7 +209,8 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
         sys.stdout.flush()
 
         file_name = t_docs[t_i]
-        output_stub = ('chipSampleRep%s' % str(t_i + 1))  # prefix for pseudoReplicate files
+
+        output_stub = t_names[t_i]  # prefix for pseudoReplicate files
 
         out1 = ("%s/%s.pr1.tagAlign.bam" % (outputdir, output_stub))
         out2 = ("%s/%s.pr2.tagAlign.bam" % (outputdir, output_stub))
@@ -329,7 +330,51 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
     #    sys.stdout.flush()
     #    os.system(run_plot)
 
-    # 3. DEAL WITH POOLED PSEUDO REPLICATES
+
+    # 3. DEAL WITH POOLED REPLICATES
+
+    outputdir = ("%s_truePooled" % expName)  # true replicate directory
+
+    if not os.path.isdir(outputdir):
+        mkdir_truePool = ("""mkdir %s""" % outputdir)
+        sys.stdout.write("%s\n" % mkdir_truePool)
+        sys.stdout.flush()
+        os.system(mkdir_truePool)
+
+    ### 3A. POOL REPLICATES
+
+    output_stub = 'poolSamples'  # pooled pseudo prefix
+    sys.stdout.write("pooling...\n")
+    sys.stdout.flush()
+    pooled_bam = ("%s_truePooled/%s.bam" % (expName, output_stub))
+    if not os.path.isfile(pooled_bam):
+        all_tBAMfiles = " ".join(t_docs)
+        pool_tFils = ("%ssamtools merge %s %s" % (samtools_path,
+                                                  pooled_bam, all_tBAMfiles))
+        sys.stdout.write("%s\n" % pool_tFils)
+        sys.stdout.flush()
+        os.system(pool_tFils)
+
+    ## 3B. MACS2 with POOLED REPLICATES
+
+    sys.stdout.write("Calling peaks for pooled data of all replicates\n")
+    sys.stdout.flush()
+
+    out = ("%s/chipSampleRepAll_peaks.%sPeak" % (outputdir, peak_type))
+    if not os.path.isfile(out):
+        macs2_pipeline.macs2_peaks(t_docs, t_names, c_docs, genome_size,
+                                   macs2_file_type, qval2, filter_chr, filter_neg,
+                                   peak_type, True, other_macs2_params, outputdir,
+                                   macs2_path, bedtools_path)
+    else:
+        sys.stderr.write("Warning: Will not override previous "
+                         "version of %s\n" % out)
+
+
+
+
+
+    # 4. DEAL WITH POOLED PSEUDO REPLICATES
     outputdir = ("%s_pooledPseudoReps" % expName)  # true replicate directory
 
     if not os.path.isdir(outputdir):
@@ -341,23 +386,11 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
     sys.stdout.write("PseudoReplicates of Pooled Replicates\n")
     sys.stdout.flush()
 
-    ## 3A. CREATING POOLED PSEUDO REPLICATES
+    ## 4A. CREATING POOLED PSEUDO REPLICATES
 
-    ### 3Ai. POOL
 
-    output_stub = 'poolSamples'  # pooled pseudo prefix
-    sys.stdout.write("pooling...\n")
-    sys.stdout.flush()
-    file_name = ("%s/%s.bam" % (outputdir, output_stub))
-    if not os.path.isfile(file_name):
-        all_tBAMfiles = " ".join(t_docs)
-        pool_tFils = ("%ssamtools merge %s %s" % (samtools_path,
-                                                  file_name, all_tBAMfiles))
-        sys.stdout.write("%s\n" % pool_tFils)
-        sys.stdout.flush()
-        os.system(pool_tFils)
 
-    ### 3Aii. SPLIT & SHUFFLE
+    ### 4Ai. SPLIT & SHUFFLE
     sys.stdout.write("shuffle the lines in the file and split it into X "
                      "parts where X is the number of IP replicates\n")
     sys.stdout.flush()
@@ -366,14 +399,14 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
     if not (os.path.isfile(out1) and os.path.isfile(out2)):
         sys.stdout.write("counting...\n")
         sys.stdout.flush()
-        nlines = extra_funcs.split_f(file_name, num_reps, samtools_path)
-        # nlines = extra_funcs.split_f(file_name, 2, samtools_path)
+        nlines = extra_funcs.split_f(pooled_bam, num_reps, samtools_path)
+        # nlines = extra_funcs.split_f(pooled_bam, 2, samtools_path)
         if nlines == 0:
-            no_file_err = ("no contents in %s" % file_name)
+            no_file_err = ("no contents in %s" % pooled_bam)
             sys.exit(no_file_err)
-        extra_funcs.shufNsplitBam(file_name, nlines, outputdir, output_stub, samtools_path)
+        extra_funcs.shufNsplitBam(pooled_bam, nlines, outputdir, output_stub, samtools_path)
 
-    ## 3B. MACS2 with POOLED PSEUDO REPLICATES
+    ## 4B. MACS2 with POOLED PSEUDO REPLICATES
     pool_pseudo_inputs = []
     pool_pseudo_prefixs = []
     run_macs = 0
@@ -411,7 +444,7 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
                                    peak_type, False, other_macs2_params,
                                    outputdir, macs2_path, bedtools_path)
 
-    ## 3C. SORTING with POOLED PSEUDO REPLICATES (PREP FOR IDR)
+    ## 4C. SORTING with POOLED PSEUDO REPLICATES (PREP FOR IDR)
     sys.stdout.write("Sorting peaks of pooled pseudo replicate 1...\n")
     sys.stdout.flush()
 
@@ -422,7 +455,7 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
                                                           output_stub,
                                                           peak_type))
         if not os.path.isfile(in_narrowPeak):
-            in_narrowPeak = ("%s/%_pr1_peaks.%sPeak" % (outputdir,
+            in_narrowPeak = ("%s/%s_pr1_peaks.%sPeak" % (outputdir,
                                                         output_stub,
                                                         peak_type))
         run_sort = ("""sort -k 8nr,8nr %s  | head -n 100000 > %s"""
@@ -430,6 +463,8 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
         sys.stdout.write("%s\n" % run_sort)
         sys.stdout.flush()
         os.system(run_sort)
+    if not os.path.isfile(out1) or extra_funcs.empty(out1):
+        sys.exit(("\nCANNOT RUN IDR because %s was not created!\n" % out1))
 
     sys.stdout.write("Sorting peaks of pooled pseudo replicate 2...\n")
     sys.stdout.flush()
@@ -449,8 +484,10 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
         sys.stdout.write("%s\n" % run_sort)
         sys.stdout.flush()
         os.system(run_sort)
+    if not os.path.isfile(out2) or extra_funcs.empty(out2):
+        sys.exit(("\nCANNOT RUN IDR because %s was not created!\n" % out1))
 
-    ## 3D. IDR with POOLED PSEUDO REPLICATES
+    ## 4D. IDR with POOLED PSEUDO REPLICATES
     sys.stdout.write("Running IDR for Pooled Pseudo Replicates...\n")
     sys.stdout.flush()
 
@@ -472,38 +509,13 @@ def run(idrtype, expName, t_docs, t_names, c_docs, genome_size,
     #    sys.stdout.flush()
     #    os.system(run_plot)
 
-    # 4. DEAL WITH POOLED REPLICATES
-
-    outputdir = ("%s_truePooled" % expName)  # true replicate directory
-
-    if not os.path.isdir(outputdir):
-        mkdir_truePool = ("""mkdir %s""" % outputdir)
-        sys.stdout.write("%s\n" % mkdir_truePool)
-        sys.stdout.flush()
-        os.system(mkdir_truePool)
-
-    ## 4A. MACS2 with POOLED REPLICATES
-
-    sys.stdout.write("Calling peaks for pooled data of all replicates\n")
-    sys.stdout.flush()
-
-    out = ("%s/chipSampleRepAll_peaks.%sPeak" % (outputdir, peak_type))
-    if not os.path.isfile(out):
-        macs2_pipeline.macs2_peaks(t_docs, t_names, c_docs, genome_size,
-                                   macs2_file_type, qval2, filter_chr, filter_neg,
-                                   peak_type, True, other_macs2_params, outputdir,
-                                   macs2_path, bedtools_path)
-    else:
-        sys.stderr.write("Warning: Will not override previous "
-                         "version of %s\n" % out)
-
     file_r.close()
 
 
-def filter_with_idr(idrtype, expName, numTreats, self_threshold, true_threshold, pool_threshold,
+def filter_with_idr(idrtype, expName, tnames, self_threshold, true_threshold, pool_threshold,
                     peak_type, bedtools_path):
     peak_type = peak_type.lower()
-
+    numTreats = len(tnames)
     # check for necessary macs2 pooled file
     pool_macs = ("%s_truePooled/chipSampleRepAll_postFilter.%sPeak"
                  % (expName, peak_type))
@@ -531,8 +543,8 @@ def filter_with_idr(idrtype, expName, numTreats, self_threshold, true_threshold,
     true_files = []
     for i in range(0, numTreats):
         # SELF-CONSISTENCY FILES
-        self_file = ("%s/chipSampleRep%i-overlapped-peaks.txt" %
-                     (self_dir, i + 1))
+        self_file = ("%s/%s-overlapped-peaks.txt" %
+                     (self_dir, tnames[i]))
         self_files.append(self_file)
         sys.stdout.write("checking for %s...\n" % self_file)
         sys.stdout.flush()
@@ -541,8 +553,10 @@ def filter_with_idr(idrtype, expName, numTreats, self_threshold, true_threshold,
                      % self_file)
         for j in range(i + 1, numTreats):
             # TRUE-REP FILES
-            true_file = ("%s/true_rep%ivrep%i-overlapped-peaks.txt"
-                         % (true_dir, i + 1, j + 1))
+            rep1 = tnames[i]
+            rep2 = tnames[j]
+            true_file = ("%s/%s_v_%s-overlapped-peaks.txt"
+                         % (true_dir, rep1, rep2))
             true_files.append(true_file)
             sys.stdout.write("checking for %s...\n" % true_file)
             sys.stdout.flush()
@@ -578,7 +592,7 @@ def filter_with_idr(idrtype, expName, numTreats, self_threshold, true_threshold,
 
         numPeaks_true = []
         for j in range(0, len(true_files)):
-            cur_rep = ("rep%i" % rep_val)
+            cur_rep = tnames[i]
             tf = true_files[j]
             if re.search(cur_rep, tf):
                 # get list of numPeak for each true replicate idr file

@@ -129,3 +129,4 @@ def macs2_peaks(t_docs, t_names, c_docs, genome_size, macs2_file_type, qval2,
                 else:
                     out_files.append(out1)
         return out_files
+

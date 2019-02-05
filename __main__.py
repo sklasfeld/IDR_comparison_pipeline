@@ -5,7 +5,7 @@ import os
 import sys
 
 
-def main(prefix, t_docs, t_names, c_docs, c_prefix, genome_size,
+def main(prefix, w_dir, t_docs, t_names, c_docs, c_prefix, genome_size,
          macs2_file_type, self_threshold, true_threshold,
          pool_threshold, chrom_sizes, filter_chr, filter_neg,
          peak_type, other_macs2_params, results_file, idr_path,
@@ -39,7 +39,7 @@ def main(prefix, t_docs, t_names, c_docs, c_prefix, genome_size,
             sys.exit("--peak_type must be NARROW or BROAD")
 
     if not results_file:
-        results_file = ("%s_results.txt" % prefix)
+        results_file = ("%s/%s_results.txt" % (w_dir,prefix))
 
     if not extra_funcs.between0and1(self_threshold):
         sys.exit("selfPseud_threshold must be a float between 0 and 1")
@@ -62,7 +62,7 @@ def main(prefix, t_docs, t_names, c_docs, c_prefix, genome_size,
     if not os.path.isfile(chrom_sizes):
         sys.exit("Chromosome size file %s does not exist" % chrom_sizes)
 
-    idr_pipeline.run(idrtype, prefix, t_docs, t_names_list,
+    idr_pipeline.run(idrtype, prefix, w_dir, t_docs, t_names_list,
         c_docs, c_prefix, genome_size, macs2_file_type, self_threshold,
         true_threshold, pool_threshold, chrom_sizes, filter_chr,
         filter_neg, peak_type, other_macs2_params,
@@ -70,7 +70,7 @@ def main(prefix, t_docs, t_names, c_docs, c_prefix, genome_size,
         samtools_path)
 
     if filter_using_idr:
-        idr_pipeline.filter_with_idr(idrtype, prefix, t_names,
+        idr_pipeline.filter_with_idr(idrtype, prefix, w_dir, t_names,
                                      self_threshold, true_threshold,
                                      pool_threshold, peak_type,
                                      bedtools_path)
@@ -87,9 +87,9 @@ if __name__ == '__main__':
         peaks that pass IDR given two true replicates, a conservative set of peaks \
         is output from the pooled MACS2 results.")
     parser.add_argument('prefix', help='In this script we generate a few \
-        directories and merged control files that will contain \
-        this prefix in front of it. I suggest using a prefix that represents the \
-        experiment')
+        files that will contain this prefix in front of it. I suggest using a prefix \
+        that represents the experiment')
+    parser.add_argument('working_dir', help='Directory to output files')
     parser.add_argument('selfPseud_threshold', help='IDR Threshold (p-value) for \
         self-pseudo replicates', type = float)
     parser.add_argument('trueRep_threshold', help='IDR Threshold (p-value) for \
@@ -131,7 +131,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    main(args.prefix, args.t_docs, args.t_names,
+    main(args.prefix, args.working_dir, args.t_docs, args.t_names,
          args.c_docs, args.c_prefix, args.genome_size, args.macs2_file_type, args.selfPseud_threshold,
          args.trueRep_threshold, args.poolPseud_threshold, args.chrom_sizes, args.filter_chr,
          args.filter_neg, args.peak_type, args.other_macs2_params,

@@ -72,7 +72,7 @@ def filternarrowpeak(narrowPeakFile, prefix, outputdir, peak_type,
 # macs2_path = PATH to macs2 script
 # bedtools_path = PATH to bedtools scripts
 def macs2_peaks(t_docs, t_names, c_docs, genome_size, macs2_file_type, qval2,
-                filter_chr, filter_neg, peak_type, pool_reps, other_param,
+                filter_chr, filter_neg, peak_type, other_param,
                 outputdir, macs2_path, bedtools_path):
     peak_type = peak_type.lower()
     params = ""
@@ -83,8 +83,43 @@ def macs2_peaks(t_docs, t_names, c_docs, genome_size, macs2_file_type, qval2,
             params = ("%s --broad " % params)
 
     params = ("%s -f %s %s" % (params, macs2_file_type, other_param))
-    if pool_reps:
-        prefix = "chipSampleRepAll"
+
+    sys.stdout.write("run MACS2 on each of the replicates...\n")
+    sys.stdout.flush()
+    out_files = []
+    for i in range(0, len(t_docs)):
+        out1 = ("%s/%s_peaks.%sPeak" % (outputdir, t_names[i], peak_type))
+        if not os.path.isfile(out1):
+            run_macs2 = ("%smacs2 callpeak -t %s %s -g %s "
+                "--outdir %s -n %s" % (macs2_path, t_docs[i],
+                                       params.strip(), genome_size,
+                                       outputdir, t_names[i]))
+            sys.stdout.write("%s\n" % run_macs2)
+            sys.stdout.flush()
+            os.system(run_macs2)
+
+            if qval2 >= 0 or len(filter_chr) > 0:
+                out2 = filternarrowpeak(out1, t_names[i],
+                                        outputdir, peak_type,
+                                        qval2, filter_chr,
+                                        filter_neg, bedtools_path)
+                out_files.append(out2)
+            else:
+                out_files.append(out1)
+    return out_files
+
+def macs2_pooled_peaks(prefix, t_docs, t_names, c_docs, genome_size, macs2_file_type, qval2,
+    filter_chr, filter_neg, peak_type, other_param,
+    outputdir, macs2_path, bedtools_path):
+        peak_type = peak_type.lower()
+        params = ""
+        if len(c_docs) > 0:
+            c_docs_string = " ".join(c_docs)
+            params = ("%s -c %s" % (params, c_docs_string))
+        if peak_type == "broad":
+                params = ("%s --broad " % params)
+
+        params = ("%s -f %s %s" % (params, macs2_file_type, other_param))
         chipout = ("%s/%s_peaks.%sPeak" % (outputdir, prefix, peak_type))
         if not os.path.isfile(chipout):
             t_docs_string = " ".join(t_docs)
@@ -105,28 +140,4 @@ def macs2_peaks(t_docs, t_names, c_docs, genome_size, macs2_file_type, qval2,
             return out
         else:
             return chipout
-    else:
-        sys.stdout.write("run MACS2 on each of the replicates...\n")
-        sys.stdout.flush()
-        out_files = []
-        for i in range(0, len(t_docs)):
-            out1 = ("%s/%s_peaks.%sPeak" % (outputdir, t_names[i], peak_type))
-            if not os.path.isfile(out1):
-                run_macs2 = ("%smacs2 callpeak -t %s %s -g %s "
-                    "--outdir %s -n %s" % (macs2_path, t_docs[i],
-                                           params.strip(), genome_size,
-                                           outputdir, t_names[i]))
-                sys.stdout.write("%s\n" % run_macs2)
-                sys.stdout.flush()
-                os.system(run_macs2)
-
-                if qval2 >= 0 or len(filter_chr) > 0:
-                    out2 = filternarrowpeak(out1, t_names[i],
-                                            outputdir, peak_type,
-                                            qval2, filter_chr,
-                                            filter_neg, bedtools_path)
-                    out_files.append(out2)
-                else:
-                    out_files.append(out1)
-        return out_files
 

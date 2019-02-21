@@ -10,7 +10,7 @@ def main(prefix, w_dir, t_docs, t_names, c_docs, c_prefix, genome_size,
          pool_threshold, chrom_sizes, filter_chr, filter_neg,
          peak_type, other_macs2_params, results_file, idr_path,
          macs2_path, bedtools_path, samtools_path,
-         filter_using_idr):
+         filter_using_idr, skip_file_creation):
     idrtype="PYTHON"
 
     if len(t_docs) < 2:
@@ -62,12 +62,16 @@ def main(prefix, w_dir, t_docs, t_names, c_docs, c_prefix, genome_size,
     if not os.path.isfile(chrom_sizes):
         sys.exit("Chromosome size file %s does not exist" % chrom_sizes)
 
-    idr_pipeline.run(idrtype, prefix, w_dir, t_docs, t_names_list,
-        c_docs, c_prefix, genome_size, macs2_file_type, self_threshold,
-        true_threshold, pool_threshold, chrom_sizes, filter_chr,
-        filter_neg, peak_type, other_macs2_params,
-        results_file, idr_path, macs2_path, bedtools_path,
-        samtools_path)
+    if not skip_file_creation:
+        idr_pipeline.run(idrtype, prefix, w_dir, t_docs, t_names_list,
+            c_docs, c_prefix, genome_size, macs2_file_type, self_threshold,
+            true_threshold, pool_threshold, chrom_sizes, filter_chr,
+            filter_neg, peak_type, other_macs2_params,
+            results_file, idr_path, macs2_path, bedtools_path,
+            samtools_path)
+    else:
+        sys.stdout.write("Skipping IDR file creation...\n")
+        sys.stdout.flush()
 
     if filter_using_idr:
         idr_pipeline.filter_with_idr(idrtype, prefix, w_dir, t_names,
@@ -124,6 +128,10 @@ if __name__ == '__main__':
         Default: $expname_results.txt', required=False)
     parser.add_argument('--filter_using_idr', help='filter using idr',
                         action='store_true')
+    parser.add_argument('--skip_file_creation', help='if you have already run IDR and \
+        have the pooled narrowPeak file as well as all the `overlapped-peaks` files \
+        output from this script already, you can set this to tell the program to not \
+        try and build these files again', action='store_true')
     parser.add_argument('-mp','--macs2_path', help='path to macs2', default = "")
     parser.add_argument('-ip','--idr_path', help='path to idr scripts', default = "")
     parser.add_argument('-bp','--bedtools_path', help='path to bedtools', default = "")
@@ -136,4 +144,4 @@ if __name__ == '__main__':
          args.trueRep_threshold, args.poolPseud_threshold, args.chrom_sizes, args.filter_chr,
          args.filter_neg, args.peak_type, args.other_macs2_params,
          args.results_file, args.idr_path, args.macs2_path, args.bedtools_path,
-         args.samtools_path, args.filter_using_idr)
+         args.samtools_path, args.filter_using_idr, args.skip_file_creation)

@@ -210,7 +210,7 @@ def run(idrtype, expName, working_dir, t_docs, t_names, c_docs, c_prefix, genome
         out1 = ("%s/%s.pr1.tagAlign.bam" % (working_dir, output_stub))
         out2 = ("%s/%s.pr2.tagAlign.bam" % (working_dir, output_stub))
         if (not os.path.isfile(out1) and not os.path.isfile(out2)) or \
-                extra_funcs.empty(out1, samtools_path) or extra_funcs.empty(out2, samtools_path):
+            extra_funcs.empty(out1, samtools_path) or extra_funcs.empty(out2, samtools_path):
             sys.stdout.write("counting lines in %s...\n" % file_name)
             sys.stdout.flush()
             nlines = extra_funcs.split_f(file_name, num_reps, samtools_path)
@@ -218,6 +218,11 @@ def run(idrtype, expName, working_dir, t_docs, t_names, c_docs, c_prefix, genome
             sys.stdout.write("shuffle the lines in the file and split it into two parts\n")
             sys.stdout.flush()
             extra_funcs.shufNsplitBam(file_name, nlines, working_dir, output_stub, samtools_path)
+        if (not os.path.isfile(out1) and not os.path.isfile(out2)) or \
+            extra_funcs.empty(out1, samtools_path) or extra_funcs.empty(out2, samtools_path):
+            err_mes = (("ERROR: %s and/or %s were not built. " + \
+                "There should be Error Messages Above.\n") % (out1,out2))
+            sys.exit(err_mes)
 
         ## 2B. MACS2 with SELF PSEUDO REPLICATES
 
@@ -341,6 +346,8 @@ def run(idrtype, expName, working_dir, t_docs, t_names, c_docs, c_prefix, genome
         sys.stdout.write("%s\n" % pool_tFils)
         sys.stdout.flush()
         os.system(pool_tFils)
+    if not os.path.isfile(pooled_bam):
+        sys.exit("ERROR: %s was not built. There should be Error Messages Above.\n" % pooled_bam)
 
     ## 3B. MACS2 with POOLED REPLICATES
 
@@ -384,6 +391,10 @@ def run(idrtype, expName, working_dir, t_docs, t_names, c_docs, c_prefix, genome
             no_file_err = ("no contents in %s" % pooled_bam)
             sys.exit(no_file_err)
         extra_funcs.shufNsplitBam(pooled_bam, nlines, working_dir, output_stub, samtools_path)
+    if not (os.path.isfile(out1) and os.path.isfile(out2)):
+        err_mes = (("ERROR: %s and/or %s were not built. " + \
+            "There should be Error Messages Above.\n") % (out1,out2))
+        sys.exit(err_mes)
 
     ## 4B. MACS2 with POOLED PSEUDO REPLICATES
     pool_pseudo_inputs = []

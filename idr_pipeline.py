@@ -123,17 +123,14 @@ def run(idrtype, expName, working_dir, t_docs, t_names, c_docs, c_prefix, genome
         results_file = ("%s/%s_results.txt" % (working_dir, expName))
 
     file_r = open(results_file, 'a')
-    file_r.write("# SELF PSEUDO REPS THRESHOLD: %f\n" % float(self_threshold))
-    file_r.write("# TRUE REPS THRESHOLD: %f\n" % float(true_threshold))
-    file_r.write("# POOLED PSEUDO REPS THRESHOLD: %f\n" % float(pool_threshold))
-
+    
     # SET IDR PARAMETERS
     idrCode_p = idr_path.split("/")
     script_path = "/".join(idrCode_p[:-2])
     num_reps = len(t_docs)
 
     # 1. DEAL WITH TRUE REPLICATES
-
+    file_r.write("# TRUE REPS (p <= %.3f)\n" % float(true_threshold))
 
     if not os.path.isdir(working_dir):
         mkdir_trueRep = ("""mkdir %s""" % working_dir)
@@ -191,11 +188,15 @@ def run(idrtype, expName, working_dir, t_docs, t_names, c_docs, c_prefix, genome
             out = run_idrscript(idrtype, idr_path, peak_type, peakf1, peakf2, \
                                 true_threshold, idr_result_prefix, script_path, chrom_sizes)
             pass_threshold = pass_idr(out, true_threshold, idrtype)
-            file_r.write("%s\t%s\n" % (out, pass_threshold))
+            out_basename = os.path.splitext(os.path.basename(out))[0]
+            file_r.write("%s\t%s\n" % (
+                out_basename.replace("-overlapped-peaks",""), 
+                pass_threshold))
 
 
     # 2. DEAL WITH SELF PSEUDO REPLICATES
-
+    file_r.write("# SELF PSEUDO REPS (p <= %.3f)\n" % float(self_threshold))
+    
     ## 2A. CREATING SELF PSEUDO REPLICATES
     idr_prefix = []
     for t_i in range(0, len(t_docs)):
@@ -317,7 +318,10 @@ def run(idrtype, expName, working_dir, t_docs, t_names, c_docs, c_prefix, genome
         out = run_idrscript(idrtype, idr_path, peak_type, peakf1, peakf2, \
                                 self_threshold, idr_result_prefix, script_path, chrom_sizes)
         pass_threshold = pass_idr(out, self_threshold, idrtype)
-        file_r.write("%s\t%s\n" % (out, pass_threshold))
+        out_basename = os.path.splitext(os.path.basename(out))[0]
+        file_r.write("%s\t%s\n" % (
+            out_basename.replace("-overlapped-peaks",""), 
+            pass_threshold))
 
     ## 	2E. CREATE PLOT FOR IDR FOR SELF PSEUDO REPLICATES
     #idr_prefixes = " ".join(idr_prefix)
@@ -369,6 +373,8 @@ def run(idrtype, expName, working_dir, t_docs, t_names, c_docs, c_prefix, genome
 
 
     # 4. DEAL WITH POOLED PSEUDO REPLICATES
+    file_r.write("# POOLED PSEUDO REPS (p <= %.3f)\n" % float(pool_threshold))
+
     sys.stdout.write("PseudoReplicates of Pooled Replicates\n")
     sys.stdout.flush()
 
@@ -487,7 +493,10 @@ def run(idrtype, expName, working_dir, t_docs, t_names, c_docs, c_prefix, genome
     out = run_idrscript(idrtype, idr_path, peak_type, peakf1, peakf2, \
                         pool_threshold, idr_prefix, script_path, chrom_sizes)
     pass_threshold = pass_idr(out, pool_threshold, idrtype)
-    file_r.write("%s\t%s\n" % (out, pass_threshold))
+    out_basename = os.path.splitext(os.path.basename(out))[0]
+    file_r.write("%s\t%s\n" % (
+        out_basename.replace("-overlapped-peaks",""),
+        pass_threshold))
 
     ## 	3E. CREATE PLOT FOR IDR FOR POOLED PSEUDO REPLICATES
     #out = ("%s/%s-plot.ps" % (working_dir, working_dir))
